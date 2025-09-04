@@ -1,9 +1,8 @@
 // api.js
-import express from "express";
-import cors from "cors";
-import { MongoClient } from "mongodb";
-import dotenv from "dotenv";
-
+const express = require("express");
+const cors = require("cors");
+const { MongoClient } = require("mongodb");
+const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
