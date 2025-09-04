@@ -1,110 +1,140 @@
-const mongoClient = require("mongodb").MongoClient;
-const cors = require("cors");
-const express = require("express");
-const { data } = require("jquery");
+import express from "express";
+import cors from "cors";
+import { MongoClient } from "mongodb";
+import dotenv from "dotenv";
 
-const conString = "mongodb://127.0.0.1:27017";
+dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.urlencoded({extended:true}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/users/:userid', (req, res)=>{
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('users').findOne({user_id:req.params.userid}).then(user=>{
-            res.send(user);
-            res.end();
-        });
-    });
-});
+const PORT = process.env.PORT || 4040;
+const MONGO_URI = process.env.MONGO_URI;
 
-app.get('/appointments/:userid', (req, res)=>{
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('appointments').find({user_id:req.params.userid}).toArray().then(documents=>{
-            res.send(documents);
-        });
-    });
-});
-app.get('/appointment/:id', (req, res)=>{
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('appointments').findOne({appointment_id:parseInt(req.params.id)}).then(document=>{
-            res.send(document);
-        });
-    });
-});
+// Connect to MongoDB once
+let db;
+const client = new MongoClient(MONGO_URI);
 
-app.post('/register-user', (req, res)=>{
-    var user = {
-        user_id:req.body.user_id,
-        user_name: req.body.user_name,
-        password: req.body.password,
-        mobile:req.body.mobile
+async function connectDB() {
+    try {
+        await client.connect();
+        db = client.db("todo"); // your database name
+        console.log("MongoDB connected");
+    } catch (err) {
+        console.error("MongoDB connection error:", err);
+        process.exit(1);
     }
+}
 
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('users').insertOne(user).then(()=>{
-            console.log('user Registered');
-            res.end();
-        });
-    });
+// Routes
+
+// Get user by user_id
+app.get("/users/:userid", async (req, res) => {
+    try {
+        const user = await db.collection("users").findOne({ user_id: req.params.userid });
+        res.send(user);
+    } catch (err) {
+        res.status(500).send({ error: "Error fetching user" });
+    }
 });
 
-app.post('/add-appointment', (req, res)=>{
-    var appointment = {
-        appointment_id : parseInt(req.body.appointment_id),
-        title:req.body.title,
-        description : req.body.description,
-        date: new Date(req.body.date),
-        user_id: req.body.user_id
-    };
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('appointments').insertOne(appointment).then(()=>{
-            console.log('Appointment Added');
-            res.end();
-        });
-    });
+// Get all appointments for a user
+app.get("/appointments/:userid", async (req, res) => {
+    try {
+        const appointments = await db.collection("appointments")
+            .find({ user_id: req.params.userid })
+            .toArray();
+        res.send(appointments);
+    } catch (err) {
+        res.status(500).send({ error: "Error fetching appointments" });
+    }
 });
 
-app.put('/edit-appointment/:id', (req, res)=>{
-    var id = parseInt(req.params.id);
-
-    var appointment = {
-        appointment_id : parseInt(req.body.appointment_id),
-        title : req.body.title,
-        description : req.body.description,
-        date : new Date(req.body.date),
-        user_id : req.body.user_id
-    };
-     
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('appointments').updateOne({appointment_id:id}, {$set : appointment})
-        .then(()=>{
-            console.log('Appointment Updated');
-            res.send();
-        });
-    });
+// Get single appointment by id
+app.get("/appointment/:id", async (req, res) => {
+    try {
+        const appointment = await db.collection("appointments")
+            .findOne({ appointment_id: parseInt(req.params.id) });
+        res.send(appointment);
+    } catch (err) {
+        res.status(500).send({ error: "Error fetching appointment" });
+    }
 });
 
-
-app.delete('/delete-appointment/:id', (req, res)=>{
-    var id = parseInt(req.params.id);
-
-    mongoClient.connect(conString).then(clientObj=>{
-        var database = clientObj.db("todo");
-        database.collection('appointments').deleteOne({appointment_id:id})
-        .then(()=>{
-            console.log('Appointment Deleted');
-            res.send();
-        });
-    });
+// Register a new user
+app.post("/register-user", async (req, res) => {
+    try {
+        const user = {
+            user_id: req.body.user_id,
+            user_name: req.body.user_name,
+            password: req.body.password, // ideally hash this before storing
+            mobile: req.body.mobile
+        };
+        await db.collection("users").insertOne(user);
+        console.log("User registered");
+        res.send({ message: "User registered successfully" });
+    } catch (err) {
+        res.status(500).send({ error: "Error registering user" });
+    }
 });
 
-app.listen(4040);
-console.log(`Server Started http://127.0.0.1:4040`);
+// Add new appointment
+app.post("/add-appointment", async (req, res) => {
+    try {
+        const appointment = {
+            appointment_id: parseInt(req.body.appointment_id),
+            title: req.body.title,
+            description: req.body.description,
+            date: new Date(req.body.date),
+            user_id: req.body.user_id
+        };
+        await db.collection("appointments").insertOne(appointment);
+        console.log("Appointment added");
+        res.send({ message: "Appointment added successfully" });
+    } catch (err) {
+        res.status(500).send({ error: "Error adding appointment" });
+    }
+});
+
+// Edit appointment
+app.put("/edit-appointment/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const updatedAppointment = {
+            appointment_id: parseInt(req.body.appointment_id),
+            title: req.body.title,
+            description: req.body.description,
+            date: new Date(req.body.date),
+            user_id: req.body.user_id
+        };
+        await db.collection("appointments").updateOne(
+            { appointment_id: id },
+            { $set: updatedAppointment }
+        );
+        console.log("Appointment updated");
+        res.send({ message: "Appointment updated successfully" });
+    } catch (err) {
+        res.status(500).send({ error: "Error updating appointment" });
+    }
+});
+
+// Delete appointment
+app.delete("/delete-appointment/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        await db.collection("appointments").deleteOne({ appointment_id: id });
+        console.log("Appointment deleted");
+        res.send({ message: "Appointment deleted successfully" });
+    } catch (err) {
+        res.status(500).send({ error: "Error deleting appointment" });
+    }
+});
+
+// Start server after DB connection
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server started on http://127.0.0.1:${PORT}`);
+    });
+});
