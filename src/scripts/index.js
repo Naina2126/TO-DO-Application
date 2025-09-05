@@ -1,4 +1,5 @@
 
+
 // Backend Base URL
 // Change this when you deploy
 // ========================
@@ -13,7 +14,7 @@ function LoadDashboard() {
     if ($.cookie("userid")) {
         $.ajax({
             method: "get",
-            url: "public/pages/user_dashboard.html", // fixed relative path
+            url: `public/pages/user_dashboard.html`, //  relative path
             success: (response) => {
                 $("section").html(response);
                 $("#lblUser").html($.cookie("userid"));
@@ -41,9 +42,6 @@ function LoadDashboard() {
                                 </div>
                             </div>`).appendTo("#appointments");
                         });
-                    },
-                    error: (err) => {
-                        console.error("Error loading appointments:", err);
                     }
                 });
             }
@@ -59,12 +57,9 @@ function LoadDashboard() {
 function LoadPage(page_name) {
     $.ajax({
         method: "get",
-        url: `public/pages/${page_name}`, // fixed relative path
+        url: `public/pages/${page_name}`,
         success: (response) => {
             $("section").html(response);
-        },
-        error: () => {
-            console.error(`Error loading page: ${page_name}`);
         }
     });
 }
@@ -96,10 +91,6 @@ $(function () {
             success: () => {
                 alert("User Registered Successfully");
                 LoadPage("user_login.html");
-            },
-            error: (err) => {
-                alert("Error registering user");
-                console.error(err);
             }
         });
     });
@@ -123,10 +114,6 @@ $(function () {
                 } else {
                     alert("User Not Found");
                 }
-            },
-            error: (err) => {
-                alert("Error logging in");
-                console.error(err);
             }
         });
     });
@@ -142,24 +129,82 @@ $(function () {
         LoadPage("add_appointment.html");
     });
 
-    // Cancel Button (back to dashboard)
-    $(document).on("click", "#btnCancel", () => {
-        LoadDashboard();
+    // Add Appointment
+    
+    $(document).on("click", "#btnAddAppointment", () => {
+        const appointment = {
+            user_id: $.cookie("userid"),
+            title: $("#title").val(),
+            description: $("#description").val(),
+            date: $("#date").val()
+        };
+
+        $.ajax({
+            method: "post",
+            url: `${API_BASE}/add-appointment`,
+            data: appointment,
+            success: () => {
+                alert("Appointment Added Successfully");
+                LoadDashboard();
+            }
+        });
     });
 
-   
-    //  Edit Appointment
+    // Cancel Button 
+    $(document).on("click", "#btnCancel", () => {
+        LoadPage("user_dashboard.html");
+    });
+
+    
+    // Edit Appointment
     
     $(document).on("click", ".btnEdit", function () {
         const id = $(this).data("id");
-        alert("Edit appointment with ID: " + id);
-        // TODO: Load edit_appointment.html and pre-fill form
-        // Then call PUT API: `${API_BASE}/edit-appointment/${id}`
+
+        // Load edit page first
+        LoadPage("edit_appointment.html");
+
+        // After page loads, fetch details and pre-fill form
+        setTimeout(() => {
+            $.ajax({
+                method: "get",
+                url: `${API_BASE}/appointments/${$.cookie("userid")}`,
+                success: (appointments) => {
+                    const appt = appointments.find((a) => a.appointment_id === id);
+                    if (appt) {
+                        $("#title").val(appt.title);
+                        $("#description").val(appt.description);
+                        $("#date").val(appt.date.slice(0, 10));
+                        $("#btnUpdateAppointment").data("id", id);
+                    }
+                }
+            });
+        }, 300);
+    });
+
+    // Handle Update button click
+    $(document).on("click", "#btnUpdateAppointment", function () {
+        const id = $(this).data("id");
+        const updated = {
+            title: $("#title").val(),
+            description: $("#description").val(),
+            date: $("#date").val()
+        };
+
+        $.ajax({
+            method: "put",
+            url: `${API_BASE}/edit-appointment/${id}`,
+            data: updated,
+            success: () => {
+                alert("Appointment Updated Successfully");
+                LoadDashboard();
+            }
+        });
     });
 
     
-    //  Delete Appointment
-    
+    // Delete Appointment
+  
     $(document).on("click", ".btnDelete", function () {
         const id = $(this).data("id");
         if (confirm("Are you sure you want to delete this appointment?")) {
@@ -169,10 +214,6 @@ $(function () {
                 success: (res) => {
                     alert(res.message);
                     LoadDashboard(); // Refresh after delete
-                },
-                error: (err) => {
-                    alert("Error deleting appointment");
-                    console.error(err);
                 }
             });
         }
