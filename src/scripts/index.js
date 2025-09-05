@@ -45,10 +45,20 @@ function LoadPage(page_name){
 $(function(){
     LoadPage("home.html");
 
-    //New User Button Click
-    $(document).on("click", "#btnNewUser, #btnExistingUser, #btnSignin", ()=>{
+    //New User Button Click- on home
+    $(document).on("click", "#btnNewUser", ()=>{
+        LoadPage("new_user.html");
+    })
+
+    //Signin Button Click - on home
+    $(document).on("click", "#btnSignin",()=>{
         LoadPage("user_login.html");
-    });
+    })
+
+    $(document).on("click", "#btnExistingUser", ()=>{
+        LoadPage("user_login.html");
+    })
+
 
     $(document).on("click", "#btnRegister", ()=>{
         var user = {
