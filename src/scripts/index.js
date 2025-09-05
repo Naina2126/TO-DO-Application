@@ -4,7 +4,7 @@ function LoadDashboard(){
     if($.cookie('userid')){
         $.ajax({
             method:"get",
-            url:`pages/user_dashboard.html`, // relative path for GitHub Pages
+            url:`public/pages/user_dashboard.html`, // relative path for GitHub Pages
             success: (response)=>{
                 $("section").html(response);
                 $("#lblUser").html($.cookie('userid'));
@@ -35,7 +35,7 @@ function LoadDashboard(){
 function LoadPage(page_name){
     $.ajax({
         method :"get",
-        url:`pages/${page_name}`, // relative path for GitHub Pages
+        url:`public/pages/${page_name}`, // relative path for GitHub Pages
         success:(response)=>{
             $("section").html(response);
         }
